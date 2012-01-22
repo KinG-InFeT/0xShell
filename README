@@ -1,3 +1,4 @@
+
 /* *
  * 
  * 0xShell ~ http://0xproject.netsons.org/#0xShell
@@ -7,7 +8,7 @@
  * Versione: v4.0
  *
  *
- *  Release pubblicata il: --/01/2012
+ *  Release pubblicata il: 22/01/2012
  *
  *
  * */ 
@@ -16,51 +17,63 @@
   *
   * CHANGELOG_
   *
+  *
+  *	 v4.0
+  *     [+] Sostituiti tutti i link del progetto al nuovo host
+  *     [+] Sistemato il "Torna Indietro" nelle directory
+  *     [+] Migliorata la funzione check_extenction()
+  *     [+] Migliorato il View File()
+  *     [+] Aggiunto link diretto alla root ( / )
+  *     [+] Aggiunto tempo di generazione pagina
+  *     [+] Allargato l'intero layout
+  *     [+] Sistemata la funzione di upload
+  *     [+] Completamente revisionato l'intero codice
+  *
   *	 v3.0
-  *  [+] Utilizzo Semplificato
-  *  [+] Migliorate tutte le funzionalità
-  *  [+] Aggiunta visualizzazione della grandezza file (B, KB, MB, GB)
-  *  [+] Aggiunta funzione per il Download dei file
-  *  [+] Migliorata la funzione CHMOD per i permessi
-  *  [+] Aggiunto Login con password di accesso "nascosta"
-  *  [+] Sistemata la visualizzazione del phpinfo()
-  *  [+] Fixato problema degli spazzi in nomi file e directory!
-  *  [+] Aggiunta funzione per visualizzare le variabili del file php.ini
-  *  [+] Aggiunta funzione di HEXDUMP per qualsiasi file
-  *  [+] Fixato un problema per la visualizzazione dei file
-  *  [+] Fixato errore nella funzione mkdir (non calcolava la directory corrente)
-  *  [+] Fixato errore in rmdir (non calcolava la directory corrente)
-  *  [+] Fixato errore nella funzione di upload di file (non calcolava la directory corrente)
-  *  [+] Fixato problema nel mysql-dump del database (il file scaricato incorporava anche il codice della pagina web)
-  *  [+] Migliorata la funzione del MySQL-Dump
-  *  [+] Fixate 2 falle di tipo XSS
-  *  [+] Revisionato e identato per bene l'intero sorgente
+  *     [+] Utilizzo Semplificato
+  *     [+] Migliorate tutte le funzionalità
+  *     [+] Aggiunta visualizzazione della grandezza file (B, KB, MB, GB)
+  *     [+] Aggiunta funzione per il Download dei file
+  *     [+] Migliorata la funzione CHMOD per i permessi
+  *     [+] Aggiunto Login con password di accesso "nascosta"
+  *     [+] Sistemata la visualizzazione del phpinfo()
+  *     [+] Fixato problema degli spazzi in nomi file e directory!
+  *     [+] Aggiunta funzione per visualizzare le variabili del file php.ini
+  *     [+] Aggiunta funzione di HEXDUMP per qualsiasi file
+  *     [+] Fixato un problema per la visualizzazione dei file
+  *     [+] Fixato errore nella funzione mkdir (non calcolava la directory corrente)
+  *     [+] Fixato errore in rmdir (non calcolava la directory corrente)
+  *     [+] Fixato errore nella funzione di upload di file (non calcolava la directory corrente)
+  *     [+] Fixato problema nel mysql-dump del database (il file scaricato incorporava anche il codice della pagina web)
+  *     [+] Migliorata la funzione del MySQL-Dump
+  *     [+] Fixate 2 falle di tipo XSS
+  *     [+] Revisionato e identato per bene l'intero sorgente
   *
   *  v2.0
-  *  [+] Rivista l'intera identazione del codice
-  *  [+] Aggiunta colorazione della sintassi durante la visualizzazione del codice di una pagina
-  *  [+] Sistemato il Footer
-  *  [+] Fixed XSS in $patch variable
-  *  [+] Aggiunta possibilità di uplodare un qualsiasi file
-  *  [+] Aggiunto il terminale Linux (Thanks C99 Shell ♥)
-  *  [+] Aggiunta la possibilità di Chmoddare un file o una directory tramite la funzione chmod()
-  *  [+] Fixato il problema nelle informazioni ( se exec non esiste? xd)
-  *  [+] Aggiunto il Dumper per i database MySQL
-  *  [+] Aggiunta la funzione per inniettare codice PHP in ogni file cosìda infettarli con una RFI o altro
-  *  [+] Aggiunto il controllo sui Magic Quotes
-  *  [+] Aggiunto il Safe_Mode ByPass con lettura del /etc/passwd file :D
-  *  [+] Identata e commentata tutta la pagina :D
+  *     [+] Rivista l'intera identazione del codice
+  *     [+] Aggiunta colorazione della sintassi durante la visualizzazione del codice di una pagina
+  *     [+] Sistemato il Footer
+  *     [+] Fixed XSS in $patch variable
+  *     [+] Aggiunta possibilità di uplodare un qualsiasi file
+  *     [+] Aggiunto il terminale Linux (Thanks C99 Shell ♥)
+  *     [+] Aggiunta la possibilità di Chmoddare un file o una directory tramite la funzione chmod()
+  *     [+] Fixato il problema nelle informazioni ( se exec non esiste? xd)
+  *     [+] Aggiunto il Dumper per i database MySQL
+  *     [+] Aggiunta la funzione per inniettare codice PHP in ogni file cosìda infettarli con una RFI o altro
+  *     [+] Aggiunto il controllo sui Magic Quotes
+  *     [+] Aggiunto il Safe_Mode ByPass con lettura del /etc/passwd file :D
+  *     [+] Identata e commentata tutta la pagina :D
   *
   *  v1.0
-  *  [+] Possibilità di navigare tra i vari file e directory
-  *  [+] Possibilità di eliminare file
-  *  [+] Possibilità di eliminare directory
-  *  [+] Possibilità di editare un file
-  *  [+] Possibilità di creare una directory
-  *  [+] Possibilità di visionare il phpinfo()
-  *  [+] Possibilità di visualizzare il contenuto di un file
-  *  [+] Possibilità di visionare i permessi su directory e file sia in stile UNIX che in stile Numerico
-  *  [+] Inserite molte informazioni riguardante il server poste in alto
-  *  [+] Possibilità di effettuare un whois dell'IP del server in cui risiede la shell
+  *     [+] Possibilità di navigare tra i vari file e directory
+  *     [+] Possibilità di eliminare file
+  *     [+] Possibilità di eliminare directory
+  *     [+] Possibilità di editare un file
+  *     [+] Possibilità di creare una directory
+  *     [+] Possibilità di visionare il phpinfo()
+  *     [+] Possibilità di visualizzare il contenuto di un file
+  *     [+] Possibilità di visionare i permessi su directory e file sia in stile UNIX che in stile Numerico
+  *     [+] Inserite molte informazioni riguardante il server poste in alto
+  *     [+] Possibilità di effettuare un whois dell'IP del server in cui risiede la shell
   *
   * */
